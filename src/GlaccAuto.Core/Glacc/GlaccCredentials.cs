@@ -3,11 +3,12 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using GlaccAuto.Core;
 
 namespace GlaccAuto.Core.Glacc;
 
 /// <summary>
-/// 用户凭证与账号态，持久化于 %APPDATA%\glacc-auto\credentials.json。
+/// 用户凭证与账号态，持久化于本机数据目录 credentials.json（见 <see cref="AppPaths"/>）。
 /// 落盘内容 = 装机盐（非个人信息）与用户数据（手机号、账号 sub、token）；
 /// 设备标识与设备档案由装机盐与手机号派生、不落盘，随手机号清空一并失效。
 /// 官方常量见 <see cref="GlaccConstants"/>。
@@ -82,9 +83,7 @@ public sealed class GlaccCredentials
 
     public static long NowSeconds() => DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
-    private static string FilePath => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "glacc-auto", "credentials.json");
+    private static string FilePath => AppPaths.CredentialsFile;
 
     public static GlaccCredentials Load()
     {

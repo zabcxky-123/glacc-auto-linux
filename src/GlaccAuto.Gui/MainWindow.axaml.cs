@@ -32,7 +32,7 @@ public partial class MainWindow : Window
         _vm.Settings.ScaleChangeRequested += OnScaleChangeRequested;
 
         // Win11 启用 Mica 材质背景；Win10 回退为主题实色背景（XAML 中的 DynamicResource）
-        if (Environment.OSVersion.Version.Build >= 22000)
+        if (OperatingSystem.IsWindows() && Environment.OSVersion.Version.Build >= 22000)
         {
             TransparencyLevelHint = new[] { WindowTransparencyLevel.Mica };
             Background = Brushes.Transparent;
@@ -181,6 +181,7 @@ public partial class MainWindow : Window
     /// </summary>
     private void StartShowSignalListener()
     {
+        if (!OperatingSystem.IsWindows()) return;
         _ = Task.Run(async () =>
         {
             try

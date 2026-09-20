@@ -718,6 +718,7 @@ public partial class MainWindowViewModel : ViewModelBase
     /// <summary>监听"到点领取"信号：计划任务拉起了第二个实例，而本实例已在运行时，由本实例代为执行。</summary>
     private void StartClaimSignalListener()
     {
+        if (!OperatingSystem.IsWindows()) return;
         _ = Task.Run(async () =>
         {
             try

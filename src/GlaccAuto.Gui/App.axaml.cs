@@ -52,7 +52,8 @@ public partial class App : Application
         };
 
         // 切换主题会丢失 Mica backdrop，需重新应用（Win11 且主窗口已创建时）
-        if (Current.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop &&
+        if (OperatingSystem.IsWindows() &&
+            Current.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop &&
             desktop.MainWindow is Window win &&
             Environment.OSVersion.Version.Build >= 22000)
         {

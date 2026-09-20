@@ -1,9 +1,10 @@
 using System.Text;
+using GlaccAuto.Core;
 
 namespace GlaccAuto.Core.Diagnostics;
 
 /// <summary>
-/// 本机诊断日志：按天写入 %APPDATA%\glacc-auto\logs\，用于记录运行状态与技术细节。
+/// 本机诊断日志：按天写入数据目录 logs/（见 <see cref="AppPaths"/>），用于记录运行状态与技术细节。
 /// 写入失败一律静默（磁盘/权限问题不能影响业务），不记录任何凭证。
 /// </summary>
 public static class DiagLog
@@ -14,8 +15,7 @@ public static class DiagLog
     private static readonly object Gate = new();
 
     /// <summary>日志目录</summary>
-    public static string DirectoryPath { get; } = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "glacc-auto", "logs");
+    public static string DirectoryPath { get; } = AppPaths.LogsDir;
 
     /// <summary>当前日志文件路径（一天一个文件）</summary>
     public static string CurrentFilePath => Path.Combine(DirectoryPath, $"glacc-auto-{DateTime.Now:yyyyMMdd}.log");

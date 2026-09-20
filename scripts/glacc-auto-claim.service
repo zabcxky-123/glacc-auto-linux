@@ -1,0 +1,13 @@
+[Unit]
+Description=glacc-auto 每日定时领取
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# 安装后由 `glacc-auto schedule on` 按实际路径重写；此处为占位。
+ExecStart=%h/.local/share/glacc-auto/glacc-auto --scheduled
+TimeoutStartSec=7200
+
+[Install]
+WantedBy=default.target

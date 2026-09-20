@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 
 namespace GlaccAuto.Core;
 
-/// <summary>应用设置，持久化于 %APPDATA%\glacc-auto\settings.json</summary>
+/// <summary>应用设置，持久化于本机数据目录 settings.json（见 <see cref="AppPaths"/>）。</summary>
 public sealed class AppSettings
 {
     /// <summary>定时领取时刻（hh:mm）：计划任务不存在时作为回退值；任务存在时以任务的真实触发时间为准</summary>
@@ -19,9 +19,7 @@ public sealed class AppSettings
     /// <summary>界面缩放百分比（75~250，步进 25），基准 125% = 当前 1.3x 设计</summary>
     public int ScalePercent { get; set; } = 125;
 
-    private static string FilePath => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "glacc-auto", "settings.json");
+    private static string FilePath => AppPaths.SettingsFile;
 
     public static AppSettings Load()
     {

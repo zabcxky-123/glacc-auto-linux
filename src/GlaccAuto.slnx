@@ -1,4 +1,5 @@
 <Solution>
   <Project Path="GlaccAuto.Core/GlaccAuto.Core.csproj" />
+  <Project Path="GlaccAuto.Cli/GlaccAuto.Cli.csproj" />
   <Project Path="GlaccAuto.Gui/GlaccAuto.Gui.csproj" />
 </Solution>

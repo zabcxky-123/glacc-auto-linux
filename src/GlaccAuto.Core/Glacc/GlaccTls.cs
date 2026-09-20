@@ -7,8 +7,8 @@ namespace GlaccAuto.Core.Glacc;
 
 /// <summary>
 /// tls-client 原生库（bogdanfinn/tls-client cffi）最小 P/Invoke 封装，AOT 安全。
-/// 全部业务 HTTP 经此栈发出（OkHttp/Android 指纹），避免暴露 .NET SChannel TLS 指纹。
-/// 原生 DLL 由 TlsClient.Native.win-x64 NuGet 包随发布分发。
+/// 全部业务 HTTP 经此栈发出（OkHttp/Android 指纹），避免暴露 .NET 默认 TLS 指纹。
+/// 原生库由 TlsClient.Native.* NuGet 包随发布分发（Windows dll / Linux so）。
 /// 导出为无会话模式：每个请求载荷自带完整配置，返回响应 JSON（含 id），用完 freeMemory(id)。
 /// </summary>
 public static class GlaccTls
@@ -24,43 +24,72 @@ public static class GlaccTls
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate void FreeMemoryDelegate(string id);
 
-    [DllImport("kernel32.dll", ExactSpelling = true, SetLastError = true)]
-    private static extern IntPtr LoadLibraryW([MarshalAs(UnmanagedType.LPWStr)] string path);
-
-    [DllImport("kernel32.dll", ExactSpelling = true, SetLastError = true)]
-    private static extern IntPtr GetProcAddress(IntPtr module, [MarshalAs(UnmanagedType.LPStr)] string name);
-
     /// <summary>定位并加载原生库；失败抛出明确异常（绝不静默降级回 .NET 原生栈）。</summary>
     public static void Initialize()
     {
         lock (InitLock)
         {
             if (_initialized) return;
-            string[] probes =
-            [
-                Path.Combine(AppContext.BaseDirectory, "tls-client.dll"),
-                Path.Combine(AppContext.BaseDirectory, "runtimes", "tls-client", "win", "x64", "tls-client.dll"),
-            ];
-            var dllPath = probes.FirstOrDefault(File.Exists);
-            if (dllPath is null)
-                throw new GlaccTlsUnavailableException(
-                    "未找到 TLS 指纹库 tls-client.dll，请重新安装应用（勿删除 runtimes 目录）。");
-            var module = LoadLibraryW(dllPath);
-            if (module == IntPtr.Zero)
-                throw new GlaccTlsUnavailableException(
-                    $"加载 TLS 指纹库失败：{dllPath}（Win32Error={Marshal.GetLastWin32Error()}）");
+            var (libPath, errorHint) = LocateNativeLibrary();
+            if (libPath is null)
+                throw new GlaccTlsUnavailableException(errorHint);
+
+            IntPtr module;
+            try
+            {
+                module = NativeLibrary.Load(libPath);
+            }
+            catch (Exception ex)
+            {
+                throw new GlaccTlsUnavailableException($"加载 TLS 指纹库失败：{libPath}（{ex.Message}）");
+            }
+
             _request = GetDelegate<RequestDelegate>(module, "request");
             _freeMemory = GetDelegate<FreeMemoryDelegate>(module, "freeMemory");
             _initialized = true;
         }
     }
 
+    private static (string? Path, string Hint) LocateNativeLibrary()
+    {
+        var root = AppContext.BaseDirectory;
+        string[] probes = OperatingSystem.IsWindows()
+            ?
+            [
+                Path.Combine(root, "tls-client.dll"),
+                Path.Combine(root, "runtimes", "tls-client", "win", "x64", "tls-client.dll"),
+            ]
+            : OperatingSystem.IsLinux()
+                ?
+                [
+                    Path.Combine(root, "tls-client.so"),
+                    Path.Combine(root, "runtimes", "tls-client", "linux", "amd64", "tls-client.so"),
+                    Path.Combine(root, "runtimes", "tls-client", "linux", "arm64", "tls-client.so"),
+                    Path.Combine(root, "runtimes", "tls-client", "linux-ubuntu", "amd64", "tls-client.so"),
+                    Path.Combine(root, "libtls-client.so"),
+                ]
+                : OperatingSystem.IsMacOS()
+                    ?
+                    [
+                        Path.Combine(root, "tls-client.dylib"),
+                        Path.Combine(root, "runtimes", "tls-client", "darwin", "amd64", "tls-client.dylib"),
+                        Path.Combine(root, "runtimes", "tls-client", "darwin", "arm64", "tls-client.dylib"),
+                    ]
+                    : [];
+
+        var hit = probes.FirstOrDefault(File.Exists);
+        if (hit is not null) return (hit, "");
+        var name = OperatingSystem.IsWindows() ? "tls-client.dll"
+            : OperatingSystem.IsMacOS() ? "tls-client.dylib"
+            : "tls-client.so";
+        return (null, $"未找到 TLS 指纹库 {name}，请重新安装应用（勿删除 runtimes 目录）。");
+    }
+
     private static T GetDelegate<T>(IntPtr module, string name) where T : Delegate
     {
-        var ptr = GetProcAddress(module, name);
-        return ptr == IntPtr.Zero
-            ? throw new GlaccTlsUnavailableException($"TLS 指纹库缺少导出函数：{name}")
-            : Marshal.GetDelegateForFunctionPointer<T>(ptr);
+        if (!NativeLibrary.TryGetExport(module, name, out var ptr) || ptr == IntPtr.Zero)
+            throw new GlaccTlsUnavailableException($"TLS 指纹库缺少导出函数：{name}");
+        return Marshal.GetDelegateForFunctionPointer<T>(ptr);
     }
 
     /// <summary>

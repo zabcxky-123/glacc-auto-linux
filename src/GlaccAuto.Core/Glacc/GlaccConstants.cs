@@ -2,7 +2,7 @@ namespace GlaccAuto.Core.Glacc;
 
 /// <summary>
 /// 官方客户端常量。
-/// 用户个人信息（手机号/token/账号 ID）在 <see cref="GlaccCredentials"/>，持久化于本机 %APPDATA%。
+/// 用户个人信息（手机号/token/账号 ID）在 <see cref="GlaccCredentials"/>，持久化于本机数据目录。
 /// </summary>
 public static class GlaccConstants
 {

@@ -6,6 +6,9 @@
     <LangVersion>latest</LangVersion>
   </PropertyGroup>
   <ItemGroup>
+    <!-- 各 RID 的 targets 只在对应 RuntimeIdentifier 下拷贝原生库；同时引用以便跨平台发布 -->
     <PackageReference Include="TlsClient.Native.win-x64" Version="1.16.0" />
+    <PackageReference Include="TlsClient.Native.linux-amd64" Version="1.16.0" />
+    <PackageReference Include="TlsClient.Native.linux-arm64" Version="1.16.0" />
   </ItemGroup>
 </Project>

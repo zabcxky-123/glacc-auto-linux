@@ -11,9 +11,9 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <PublishAot>true</PublishAot>
-    <!-- 固定 RID：让 TlsClient.Native.win-x64 的原生库 targets 在常规构建也拷贝 tls-client.dll -->
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <PublishAot Condition="$([MSBuild]::IsOSPlatform('Windows'))">true</PublishAot>
+    <!-- Windows 固定 win-x64，以便 TlsClient.Native.win-x64 的 targets 拷贝 tls-client.dll -->
+    <RuntimeIdentifier Condition="$([MSBuild]::IsOSPlatform('Windows'))">win-x64</RuntimeIdentifier>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="11.3.*" />
@@ -26,9 +26,12 @@
   </ItemGroup>
   <!-- 发布时把 TLS 指纹库放到 publish 根目录（GlaccTls 探针覆盖 exe 同目录） -->
   <Target Name="CopyTlsClientToPublish" AfterTargets="Publish">
-    <Copy SourceFiles="$(OutputPath)runtimes\tls-client\win\x64\tls-client.dll"
+    <ItemGroup>
+      <_TlsNative Include="$(OutputPath)runtimes\tls-client\**\tls-client.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_TlsNative)"
           DestinationFolder="$(PublishDir)"
           SkipUnchangedFiles="true"
-          Condition="Exists('$(OutputPath)runtimes\tls-client\win\x64\tls-client.dll')" />
+          Condition="'@(_TlsNative)' != ''" />
   </Target>
 </Project>

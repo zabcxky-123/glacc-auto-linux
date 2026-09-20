@@ -1,0 +1,12 @@
+[Unit]
+Description=glacc-auto 每日定时领取
+
+[Timer]
+OnCalendar=*-*-* 08:00:00
+Persistent=true
+RandomizedDelaySec=90
+AccuracySec=1min
+Unit=glacc-auto-claim.service
+
+[Install]
+WantedBy=timers.target
