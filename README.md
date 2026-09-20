@@ -1,6 +1,8 @@
-# glacc-auto
+# glacc-auto-linux
 
-自动领取给梨加速器时长，每天领取315分钟。
+给梨加速器时长自动领取的 **Linux 移植**：无界面 CLI，支持每天定时领取（systemd 用户定时器 / crontab）。
+
+上游 Windows GUI：[JiangXu26710/glacc-auto](https://github.com/JiangXu26710/glacc-auto)
 
 ---
 
@@ -12,135 +14,118 @@
 
 ---
 
-## 软件截图
+## 功能
 
-<img src=".\static\screenshot\img_1.png" alt="img_1" style="zoom:50%;" />
+- **命令行领取** —— `login` / `claim` / `status`，登录后一次跑完当日任务
+- **每日定时** —— `schedule on HH:MM`：优先 systemd `--user` timer，不可用时写入 crontab
+- **错过补跑** —— systemd `Persistent=true`，开机后补跑错过的触发
+- **结果通知** —— 可选 Server酱，定时领取结束后推送到微信
+- **本机凭证** —— 手机号、token 只存在本机配置目录，不上传
 
-## 功能特性
+架构：x86_64（`linux-x64`）与 aarch64（`linux-arm64`）。需要 [.NET 10 SDK](https://dotnet.microsoft.com/download) 才能从源码安装。
 
-- **一键领取** —— 登录后点一次按钮，自动跑完当日全部任务，无需人工干预
-- **余额一览** —— 首页直接显示当前可用时长（时 / 分）
-- **定时领取** —— Windows 计划任务 / Linux systemd 用户定时器（或 crontab）每天指定时间自动执行
-- **结果通知** —— 可选接入 Server酱，定时领取结束后把结果推送到微信
-- **原生观感** —— Win11 Fluent 风格界面，支持跟随系统深浅色与界面缩放
-- **Linux CLI** —— 无界面命令行：`login` / `claim` / `schedule`，适合服务器与常开 Linux 主机
-
-## Windows 下载
-
-前往 **[Releases](https://github.com/JiangXu26710/glacc-auto/releases/latest)** 下载最新的 `glacc-auto-v*.zip`，解压到任意目录，双击 `GlaccAuto.Gui.exe` 即可运行。
-
-- **系统要求**：Windows 10 / 11，64 位
-
-## Linux 安装（每日自动领取）
-
-需要 [.NET 10 SDK](https://dotnet.microsoft.com/download)。x86_64 与 aarch64 均可。
+## 安装
 
 ```bash
-git clone https://github.com/JiangXu26710/glacc-auto.git
-cd glacc-auto
+git clone https://github.com/zabcxky-123/glacc-auto-linux.git
+cd glacc-auto-linux
 chmod +x scripts/install-linux.sh
 ./scripts/install-linux.sh
 ```
 
-默认安装到 `~/.local/share/glacc-auto/`，并在 `~/.local/bin/glacc-auto` 放软链接。确保 `~/.local/bin` 在 `PATH` 中。
+默认安装到 `~/.local/share/glacc-auto/`，并在 `~/.local/bin/glacc-auto` 放软链接。把 `~/.local/bin` 加入 `PATH`。
 
-```bash
-# 短信登录（交互输入手机号与验证码）
-glacc-auto login
-
-# 立刻领取一次
-glacc-auto claim
-
-# 查看余额与今日进度
-glacc-auto status
-
-# 每天 08:00 自动领取（优先注册 systemd --user timer，否则写入 crontab）
-glacc-auto schedule on 08:00
-
-# 关闭定时
-glacc-auto schedule off
-```
-
-安装时也可直接带上时刻：
+安装时直接打开定时：
 
 ```bash
 ./scripts/install-linux.sh --time 08:00
 ```
 
-### systemd 用户定时器说明
+自定义前缀：`PREFIX=/opt/glacc-auto ./scripts/install-linux.sh`
 
-- 单元名：`glacc-auto-claim.timer` / `glacc-auto-claim.service`
-- `Persistent=true`：错过的触发会在下次开机补跑
-- 若希望**未登录也到点执行**（服务器、无桌面）：
+## 使用
 
-  ```bash
-  sudo loginctl enable-linger "$USER"
-  ```
+```bash
+glacc-auto login                 # 短信登录（交互输入手机号与验证码）
+glacc-auto status                # 余额与今日任务进度
+glacc-auto claim                 # 立刻领取
+glacc-auto schedule on 08:00     # 每天 08:00 自动领取
+glacc-auto schedule status
+glacc-auto schedule off
+glacc-auto logout
+```
 
-- 查看下次触发：`systemctl --user list-timers glacc-auto-claim.timer`
-- 手动触发一次：`systemctl --user start glacc-auto-claim.service`
+`glacc-auto --scheduled` 与 `claim` 相同，供 systemd / cron 调用，结束后按配置推送 Server酱。
 
-无 systemd 的环境会把一行 crontab 写入当前用户（带 `# glacc-auto-claim` 标记）。
+无桌面、SSH 服务器若希望**未登录图形会话也到点执行**：
 
-### 数据目录
+```bash
+sudo loginctl enable-linger "$USER"
+```
 
-| 平台 | 默认路径 |
+查看下次触发 / 手动跑一次：
+
+```bash
+systemctl --user list-timers glacc-auto-claim.timer
+systemctl --user start glacc-auto-claim.service
+systemctl --user status glacc-auto-claim.timer
+```
+
+无 systemd 用户总线时，会给当前用户 crontab 加一行（带 `# glacc-auto-claim` 标记）。
+
+## 配置与数据目录
+
+默认：`${XDG_CONFIG_HOME:-$HOME/.config}/glacc-auto/`  
+可用环境变量 `GLACC_HOME` 覆盖。
+
+| 文件 | 内容 |
 | --- | --- |
-| Windows | `%APPDATA%\glacc-auto\` |
-| Linux | `${XDG_CONFIG_HOME:-$HOME/.config}/glacc-auto/` |
+| `credentials.json` | 登录令牌（本机） |
+| `settings.json` | 间隔、重试、Server酱、定时时刻 |
+| `logs/` | 按日诊断日志，保留 7 天 |
 
-可用环境变量 `GLACC_HOME` 覆盖。凭证、设置、日志都在此目录，不会上传。
-
-在 `settings.json` 里可配置：
+`settings.json` 常用项：
 
 - `ScheduledTime`：`HH:mm`（默认 `08:00`）
-- `ServerKey`：Server酱 SendKey（`SCT...`），定时领取结束后推送微信
+- `ServerKey`：Server酱 SendKey（`SCT...`）
 - `IntervalMinSec` / `IntervalMaxSec`：每次推送间隔随机区间（默认 30–40 秒）
 - `NetworkRetryCount`：网络失败额外重试次数（默认 3）
 
+## 退出码
+
+| 码 | 含义 |
+| --- | --- |
+| `0` | 成功（含「已有实例在领、本次跳过」） |
+| `1` | 领取未完成 / 命令错误 |
+| `10` | 需要重新 `glacc-auto login` |
+| `2` | 未处理异常 |
+
 ## 常见问题
 
-**定时领取未生效？（Windows）**
+**定时没跑？**
 
-- 确保设置页的开关处于开启状态，并检查 Windows 任务计划程序中是否存在 `glacc-auto-claim` 任务
-- 确保到达预定时间后，电脑处于开机已登录状态
-- 确保杀毒软件不会误报、拦截本软件
+1. `glacc-auto schedule status` 看是否已注册  
+2. `systemctl --user status glacc-auto-claim.timer` 是否 enabled/active  
+3. 无图形会话：`loginctl enable-linger $USER`  
+4. 是否已登录：存在 `~/.config/glacc-auto/credentials.json`  
+5. 日志：`~/.config/glacc-auto/logs/`
 
-**定时领取未生效？（Linux）**
+**领取提示 TLS 指纹库不可用**
 
-- `glacc-auto schedule status` 确认已注册
-- `systemctl --user status glacc-auto-claim.timer` 查看是否 enabled/active
-- 无图形会话的机器请执行 `loginctl enable-linger $USER`
-- 确认已 `glacc-auto login`，且 `~/.config/glacc-auto/credentials.json` 存在
-- 日志：`~/.config/glacc-auto/logs/`
+安装目录里应有 `tls-client.so`（与 `glacc-auto` 同级，或 `runtimes/tls-client/linux/...`）。重新执行 `scripts/install-linux.sh`。
 
-**CLI 退出码**
+## 从源码发布
 
-- `0` 成功（含「已有实例在领、本次跳过」）
-- `1` 领取未完成 / 命令错误
-- `10` 需要重新短信登录
-- `2` 未处理异常
+```bash
+# 当前机器架构
+./scripts/package-linux.sh
 
-## 数据与隐私
-
-- 手机号、账号 ID、登录令牌**仅保存在本机**数据目录，不会上传到任何第三方服务器
-- 程序不收集、不上报任何使用数据与统计信息
-
-## 从源码构建
-
-### Windows GUI
-
-需要 .NET 10 SDK、Windows 11 SDK 与 MSVC 生成工具（Visual Studio Build Tools 的 C++ 生成工具）。仓库根目录的 `package.ps1` 提供了一键打包：
-
-```powershell
-.\package.ps1                # 发布 + 暂存 + 打包 zip（版本号读自 GlaccAuto.Gui.csproj）
-.\package.ps1 -Launch        # 打包后直接启动
-.\package.ps1 -Version 0.2.0 # 覆盖版本号
+# 或指定 RID
+./scripts/package-linux.sh linux-x64
+./scripts/package-linux.sh linux-arm64
 ```
 
-若工具链装在非默认位置，可用 `-BuildToolsRoot` 指定，或设置环境变量 `GLACC_BUILDTOOLS`。
-
-### Linux CLI
+产物：`dist/glacc-auto-v<版本>-linux-*.tar.gz`。手动 `dotnet publish`：
 
 ```bash
 dotnet publish src/GlaccAuto.Cli/GlaccAuto.Cli.csproj \
@@ -148,21 +133,27 @@ dotnet publish src/GlaccAuto.Cli/GlaccAuto.Cli.csproj \
   -o dist/linux/linux-x64
 ```
 
-aarch64 把 `-r linux-x64` 换成 `-r linux-arm64`。或直接用 `scripts/install-linux.sh`。
+本仓库仍包含上游 Windows GUI 工程；Windows 打包继续用根目录 `package.ps1`。日常 Linux 使用只需 CLI。
+
+## 数据与隐私
+
+- 手机号、账号 ID、登录令牌**仅保存在本机**数据目录，不会上传到任何第三方服务器
+- 程序不收集、不上报任何使用数据与统计信息
 
 ## 许可
 
-本项目以 **[PolyForm Noncommercial License 1.0.0](LICENSE)** 授权：
+本项目以 **[PolyForm Noncommercial License 1.0.0](LICENSE)** 授权（与上游相同）：
 
 - ✅ 允许个人学习、研究、实验、业余爱好等**非商业用途**
 - ✅ 允许修改、二次开发与再分发
 - ❌ **禁止任何商业或盈利性使用**
 - 📌 分发时必须保留版权声明（见 [NOTICE](NOTICE)）与许可条款文本
 
-> 注意：这是**非商业许可**，不等于 OSI 认可的开源许可。源码公开、可自由用于非商业目的，但**不可商用**。
+> 这是**非商业许可**，不等于 OSI 认可的开源许可。
 
-使用前请务必阅读 **[DISCLAIMER.md](DISCLAIMER.md)**。
+使用前请阅读 **[DISCLAIMER.md](DISCLAIMER.md)**。
 
 ---
 
-Copyright (c) 2026 JiangXu26710
+Copyright (c) 2026 JiangXu26710  
+Linux 移植：https://github.com/zabcxky-123/glacc-auto-linux
